@@ -28,6 +28,8 @@ vez la cursada de una misma materia (a lo sumo la aprueba una vez), algo similar
 ocurre con los exámenes finales.}
 
 program p2ej7;
+const
+	valor_alto = 9999;
 type
 	
 	registro_maestro = record
@@ -52,6 +54,115 @@ type
 		nota: integer;
 	end;
 	
-var
+	archivo_maestro = file of registro_maestro;
+	archivo_detalle_cursada = file of registro_cursada;
+	archivo_detalle_finales = file of registro_finales;
+
+procedure leerC (var aDC: archivo_detalle_cursada; var rC: registro_cursada);
 begin
-end.
+	if (not EOF (aDC)) then begin
+		read (aDC,rC);
+	end
+	else
+		rC.cod := valor_alto;
+end;
+
+procedure leerF (var aDF: archivo_detalle_finales; var rF: registro_finales);
+begin
+	if (not EOF (aDF)) then begin
+		read (aDF, rF);
+	end
+	else
+		rF.cod := valor_alto;
+end;
+	
+procedure actualizarMaestro (var aM: archivo_maestro; var aDC: archivo_detalle_cursada; var aDF: archivo_detalle_finales);
+var
+
+	regC: registro_cursada;
+	regF: registro_finales;
+	regM: registro_maestro;
+	materias, finales, codActual: integer;
+	
+begin
+	
+	reset (aM); reset (aDC); reset (aDF);
+	leerC (aDC,regC); leerF (aDF,regF);
+	while ((regC.cod <> valor_alto) or (regF.cod <> valor_alto))do begin
+		
+		materias:= 0; finales:= 0;
+		
+		if (regC.cod = regF.cod) then begin //coincide el alumno
+			codActual:= regC.cod;
+			
+			while ((regC.cod = regF.cod) and (codActual = regC.cod)) and  do begin
+				if (regC.aprobado) then
+					materias:= materias + 1;
+				if (regF.nota >= 4) then
+					finales:= finales + 1;
+				leerC (aDC, regC); leerF (aDF,regF);
+			end;
+			
+		end;
+		
+		if (regC.cod < regF.cod) then begin //hay mas finales que cursadas de ese alumno
+			codActual:= regC.cod;
+			while (regC.cod = codActual) do begin
+				if (regC.aprobado) then
+					materias:= materias + 1;
+				leerC (aDC, regC);
+			end;
+		end
+		
+		else begin
+			if (regF.cod < regC.cod) then begin //hay mas cursadas que finales de ese alumno
+				codActual:= regF.cod;
+				while (regF.cod = codActual) do begin 
+					if (regF.nota >= 4) then
+						finales:= finales + 1;
+					leerF (aDF, regF);
+				end;
+			end;
+		end;
+		
+		//buscar en el maestro al alumno
+		read (aM, regM);
+		while (regM.cod <> codActual) do begin
+			read (aM, regM);
+		end;
+		
+		//lo encontre entonces lo escribo
+		regM.cursadasAprobadas:= regM.cursadasAprobadas + materias;
+		regM.cantMateriasFinalAprobado:= regM.cantMateriasFinalAprobado + finales;
+		seek (aM, filepos(aM)-1);
+		write (aM, regM);
+		close (aM); close (aDC); close (aDF);
+		
+	end;
+	
+	
+end;
+
+
+var
+	
+	aM: archivo_maestro;
+	aDC: archivo_detalle_cursada;
+	aDF: archivo_detalle_finales;
+	
+begin
+	
+	assign (aM, 'Archivo maestro');
+	rewrite (aM)
+	cargarMaestro (aM); //se dispone
+	close (aM);
+	assign (aDC, 'Archivo Detalle Cursada');
+	rewrite (aDC);
+	cargarDetalleC (aDC); //se dipone
+	close (aDC);
+	assign (aDF, 'Archivo Detalle Finales');
+	rewrite (aDF);
+	cargarDetalleF (aDF); //se dispone
+	close (aDF);
+	actualizarMaestro (aM, aDC, aDF);
+end;
